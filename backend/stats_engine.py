@@ -94,7 +94,7 @@ def sample_size_required(baseline_rate: float, mde: float, alpha: float = 0.05, 
     denominator = (p2 - p1) ** 2
 
     if denominator == 0:
-        return float('inf')
+      raise ValueError("MDE results in no detectable difference — try a larger MDE")
 
     n = numerator / denominator
     return math.ceil(n)
