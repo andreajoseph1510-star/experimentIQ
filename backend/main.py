@@ -1,17 +1,22 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 from stats_engine import two_proportion_z_test, confidence_interval, cohens_h, sample_size_required
+from database import init_db, save_experiment, get_all_experiments, delete_experiment
 
 app = FastAPI(title="ExperimentIQ API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # we'll restrict this later
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize the database (creates the table if it doesn't exist yet)
+init_db()
 
 
 @app.get("/")
@@ -24,7 +29,6 @@ def health_check():
     return {"status": "ok"}
 
 
-# Request body schema for the /analyze endpoint
 class AnalyzeRequest(BaseModel):
     n_a: int
     c_a: int
@@ -32,7 +36,7 @@ class AnalyzeRequest(BaseModel):
     c_b: int
     alpha: float = 0.05
     tails: int = 2
-    mde: float = 0.02  # minimum detectable effect, as a decimal (0.02 = 2%)
+    mde: float = 0.02
 
 
 @app.post("/analyze")
@@ -86,5 +90,51 @@ def sample_size(data: SampleSizeRequest):
     try:
         n = sample_size_required(data.baseline_rate, data.mde, data.alpha, data.power)
         return {"required_sample_size_per_group": n}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------- Experiment tracker endpoints ----------
+
+class SaveExperimentRequest(BaseModel):
+    name: str
+    n_a: int
+    c_a: int
+    n_b: int
+    c_b: int
+    alpha: float
+    tails: int
+    mde: float
+    rate_a: float
+    rate_b: float
+    uplift: float
+    p_value: float
+    verdict: str
+
+
+@app.post("/experiment")
+def create_experiment(data: SaveExperimentRequest):
+    try:
+        experiment_id = save_experiment(data.dict())
+        return {"id": experiment_id, "status": "saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/experiments")
+def list_experiments():
+    try:
+        experiments = get_all_experiments()
+        return {"experiments": experiments}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/experiment/{experiment_id}")
+def remove_experiment(experiment_id: int):
+    deleted = delete_experiment(experiment_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    return {"status": "deleted", "id": experiment_id}
