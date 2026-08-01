@@ -6,6 +6,7 @@ import MetricsGrid from './components/MetricsGrid'
 import ConfidenceInterval from './components/ConfidenceInterval'
 import SaveExperimentButton from './components/SaveExperimentButton'
 import ExperimentsList from './components/ExperimentsList'
+import SampleSizePage from './components/SampleSizePage'
 
 function App() {
   const [view, setView] = useState('analyzer')
@@ -62,11 +63,13 @@ function App() {
             <SaveExperimentButton result={result} formData={formData} />
           </div>
         </div>
-      ) : (
+      ) : view === 'experiments' ? (
         <div className="max-w-[1100px] mx-auto px-5 pt-6 pb-10">
           <h2 className="text-[18px] font-semibold mb-4">Saved experiments</h2>
           <ExperimentsList />
         </div>
+      ) : (
+        <SampleSizePage />
       )}
     </div>
   )
