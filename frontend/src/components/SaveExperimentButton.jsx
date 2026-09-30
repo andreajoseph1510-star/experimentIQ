@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { supabase } from '../supabase'
 
-export default function SaveExperimentButton({ result, formData }) {
+export default function SaveExperimentButton({ result, formData, session }) {
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -14,26 +15,23 @@ export default function SaveExperimentButton({ result, formData }) {
     setSaving(true)
     setError(null)
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/experiment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          n_a: formData.n_a,
-          c_a: formData.c_a,
-          n_b: formData.n_b,
-          c_b: formData.c_b,
-          alpha: formData.alpha,
-          tails: formData.tails,
-          mde: formData.mde,
-          rate_a: result.rate_a,
-          rate_b: result.rate_b,
-          uplift: result.uplift,
-          p_value: result.p_value,
-          verdict: result.verdict,
-        }),
+      const { error } = await supabase.from('experiments').insert({
+        user_id: session.user.id,
+        name,
+        n_a: formData.n_a,
+        c_a: formData.c_a,
+        n_b: formData.n_b,
+        c_b: formData.c_b,
+        alpha: formData.alpha,
+        tails: formData.tails,
+        mde: formData.mde,
+        rate_a: result.rate_a,
+        rate_b: result.rate_b,
+        uplift: result.uplift,
+        p_value: result.p_value,
+        verdict: result.verdict,
       })
-      if (!res.ok) throw new Error('Failed to save experiment')
+      if (error) throw error
       setSaved(true)
       setName('')
       setTimeout(() => setSaved(false), 2500)
